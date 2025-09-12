@@ -19,7 +19,7 @@ Keširanje odgovora u memoriji (TTL 5 min). Bez Task/await i bez dodatne JOIN de
 4. (Ako dobiješ 403 pri startu) pokreni **PowerShell kao Administrator** i izvrši:
    ```powershell
    netsh http add urlacl url=http://+:8080/ user=%USERNAME%
-5. Pokreni aplikaciju (F5) i otvori u browseru: http://localhost:8080/
+5. Pokreni aplikaciju i otvori u browseru: http://localhost:8080/
 
 ## Endpointi i primeri
 
