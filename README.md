@@ -5,20 +5,6 @@ Projekat demonstrira klasično višenitno programiranje: dedikovana nit za accep
 Keširanje odgovora u memoriji (TTL 5 min). Bez Task/await i bez dodatne JOIN deduplikacije.
 
 
-## Sadržaj
-- [Zahtevi](#zahtevi)
-- [Brzi start](#brzi-start)
-- [Endpointi i primeri](#endpointi-i-primeri)
-- [Šta je implementirano iz zadatka](#šta-je-implementirano-iz-zadatka)
-- [Višenitnost i System.Threading](#višenitnost-i-systemthreading)
-- [Keš](#keš)
-- [Logovanje](#logovanje)
-- [Testiranje / demonstracija](#testiranje--demonstracija)
-- [Troubleshooting](#troubleshooting)
-- [Struktura projekta](#struktura-projekta)
-- [Napomena](#napomena)
-- [Licenca](#licenca)
-
 ## Zahtevi
 - **Windows + Visual Studio 2022**
 - Instaliran **.NET Framework 4.8/4.8.1 targeting pack**  
