@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
@@ -19,18 +18,15 @@ namespace OpenLibraryServer
         private readonly ResponseCache _cache = new ResponseCache(TimeSpan.FromMinutes(5));
         private readonly object _consoleLock = new object();
 
-        // Accept na dedicated niti (klasična nit)
+        
         private Thread _acceptThread;
         private volatile bool _running;
 
-        // In-flight deduplikacija (sinhrona): svi čekaju isti Lazy.Value
         
-
-        // --- DTO-ovi za projekciju/HTML ---
         private sealed class BookItem
         {
             public string Title { get; set; }
-            public string Author { get; set; } // prvi autor (radi kompatibilnosti)
+            public string Author { get; set; } // prvi autor 
             public System.Collections.Generic.List<string> Authors { get; set; } // svi autori
             public int? FirstYear { get; set; }
             public string WorkKey { get; set; }
@@ -74,7 +70,7 @@ namespace OpenLibraryServer
                 HttpListenerContext ctx = null;
                 try
                 {
-                    // blokira ovu nit dok ne dođe zahtev
+                    
                     ctx = _listener.GetContext();
                 }
                 catch (ObjectDisposedException) { break; }
@@ -123,7 +119,6 @@ namespace OpenLibraryServer
 
                 if (path == "/search")
                 {
-                    // 1) Parsiraj query i pripremi dozvoljene parametre
                     var qs = HttpUtility.ParseQueryString(req.Url.Query);
                     var forward = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     string[] allowed = { "q", "author", "title", "subject", "isbn", "publisher", "sort", "page", "limit", "fields", "lang", "offset" };
@@ -145,7 +140,6 @@ namespace OpenLibraryServer
                         return;
                     }
 
-                    // 2) Cache (ključ razlikuje html/json)
                     var cacheKey = BuildCacheKey(forward, wantHtml);
                     if (_cache.TryGet(cacheKey, out var cached))
                     {
@@ -153,10 +147,8 @@ namespace OpenLibraryServer
                         return;
                     }
 
-                    // 3) Bez JOIN-a: direktno povuci podatke (sinhrono)
                     var proj = FetchProjectionSync(forward);
 
-                    // 4) Formiraj odgovor i upiši u keš
                     byte[] payload;
                     string contentType;
 
@@ -200,6 +192,41 @@ namespace OpenLibraryServer
                 status = ex.StatusCode;
                 WriteJson(ctx, new { error = ex.Message, status });
             }
+            catch (WebException wex)
+            {
+                var http = wex.Response as HttpWebResponse;
+                if (http != null)
+                {
+                    int upstream = (int)http.StatusCode;
+
+                    if (upstream >= 500 || upstream == 429)
+                    {
+                        status = 502;
+                        WriteJson(ctx, new
+                        {
+                            error = "Upstream service unavailable. Please try again.",
+                            upstream_status = upstream,
+                            status
+                        });
+                    }
+                    else
+                    {
+                        status = upstream;
+                        WriteJson(ctx, new
+                        {
+                            error = "Upstream error.",
+                            upstream_status = upstream,
+                            status
+                        });
+                    }
+                }
+                else
+                {
+                    // Nema HTTP odgovora 
+                    status = 502;
+                    WriteJson(ctx, new { error = "Network error contacting Open Library.", status });
+                }
+            }
             catch (Exception ex)
             {
                 status = 500;
@@ -210,14 +237,12 @@ namespace OpenLibraryServer
                 sw.Stop();
                 var ms = (int)sw.ElapsedMilliseconds;
                 var ip = req.RemoteEndPoint != null ? req.RemoteEndPoint.Address.ToString() : "-";
-                // ⇓⇓⇓ POJEDNOSTAVLJEN LOG: bez src=LIVE/JOIN/CACHE
                 SafeLog($"{DateTime.Now:HH:mm:ss} | {req.HttpMethod} {req.RawUrl} | {status} | thr={threadId} | {ms} ms | ip={ip}");
                 try { res.Close(); } catch { }
             }
         }
 
-
-        // --- Sinhroni helperi za Open Library i render ---
+        //Sinhroni helperi 
 
         private SearchProjection FetchProjectionSync(System.Collections.Generic.Dictionary<string, string> forward)
         {
@@ -269,15 +294,6 @@ namespace OpenLibraryServer
             };
         }
 
-
-        private static string BuildInflightKey(System.Collections.Generic.IDictionary<string, string> forward)
-        {
-            var sb = new StringBuilder("inflight:");
-            foreach (var kv in forward.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
-                sb.Append(kv.Key).Append('=').Append(kv.Value).Append('&');
-            return sb.ToString();
-        }
-
         private static string BuildCacheKey(System.Collections.Generic.IDictionary<string, string> forward, bool wantHtml)
         {
             var sb = new StringBuilder("search:");
@@ -303,7 +319,7 @@ namespace OpenLibraryServer
             sb.AppendLine("</style>");
             sb.AppendLine("<h1>Search results</h1>");
 
-            // query summary
+           
             sb.Append("<p class=\"muted\">Filters: ");
             sb.Append(string.Join(", ", proj.Query.Select(kv => $"{H(kv.Key)}=<b>{H(kv.Value)}</b>")));
             sb.Append("</p>");
@@ -313,7 +329,7 @@ namespace OpenLibraryServer
             sb.AppendLine("<table>");
             sb.AppendLine("<tr><th>Title</th><th>Author</th><th>First publish year</th></tr>");
 
-            // priprema tokena za bold autorâ
+            
             proj.Query.TryGetValue("author", out var authorFilter);
             var tokens = SplitAuthorFilter(authorFilter);
 
@@ -431,7 +447,6 @@ namespace OpenLibraryServer
 </html>";
         }
 
-
         private static string BuildErrorHtml(string message)
         {
             string H(string s) => HttpUtility.HtmlEncode(s ?? "");
@@ -456,8 +471,6 @@ a:hover{{text-decoration:underline}}
             lock (_consoleLock)
             {
                 Console.WriteLine(line);
-                // ako koristiš FileLogger:
-                // try { _fileLogger.Log(line); } catch { }
             }
         }
 
@@ -469,7 +482,6 @@ a:hover{{text-decoration:underline}}
             _listener.Close();
             _client.Dispose();
             _cache.Dispose();
-            // _fileLogger?.Dispose();
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Web;
 
 namespace OpenLibraryServer
@@ -13,7 +14,6 @@ namespace OpenLibraryServer
 
         public OpenLibraryClient()
         {
-            // osiguraj TLS 1.2
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
         }
 
@@ -31,31 +31,71 @@ namespace OpenLibraryServer
 
             var uri = new Uri(BaseUri + "?" + b.ToString());
 
-            var req = (HttpWebRequest)WebRequest.Create(uri);
-            req.Method = "GET";
-            req.Timeout = timeoutMilliseconds;
-            req.ReadWriteTimeout = timeoutMilliseconds;
-            req.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-            req.UserAgent = "OpenLibraryServer/1.0 (+classic)";
-            req.Accept = "application/json";
+            int attempts = 0;
+            int maxAttempts = 3;
+            int delayMs = 300; //backoff
 
-            using (var resp = (HttpWebResponse)req.GetResponse())
-            using (var stream = resp.GetResponseStream())
+            while (true)
             {
-                if (resp.StatusCode != HttpStatusCode.OK)
-                    throw new WebException($"Open Library returned {(int)resp.StatusCode}.");
-
-                using (var ms = new MemoryStream())
+                attempts++;
+                try
                 {
-                    stream.CopyTo(ms);
-                    return ms.ToArray();
+                    var req = (HttpWebRequest)WebRequest.Create(uri);
+                    req.Method = "GET";
+                    req.Timeout = timeoutMilliseconds;
+                    req.ReadWriteTimeout = timeoutMilliseconds;
+                    req.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                    req.UserAgent = "OpenLibraryServer/1.0 (+classic)";
+                    req.Accept = "application/json";
+                    req.KeepAlive = true;
+
+                    using (var resp = (HttpWebResponse)req.GetResponse())
+                    using (var stream = resp.GetResponseStream())
+                    {
+                        if (resp.StatusCode != HttpStatusCode.OK)
+                            throw new WebException($"Open Library returned {(int)resp.StatusCode}.", null, WebExceptionStatus.ProtocolError, resp);
+
+                        using (var ms = new MemoryStream())
+                        {
+                            stream.CopyTo(ms);
+                            return ms.ToArray();
+                        }
+                    }
+                }
+                catch (WebException wex)
+                {
+                    var http = wex.Response as HttpWebResponse;
+
+                    if (http != null)
+                    {
+                        int code = (int)http.StatusCode;
+                        bool transient = code >= 500 || code == 429;
+                        if (transient && attempts < maxAttempts)
+                        {
+                            Thread.Sleep(delayMs);
+                            delayMs *= 2;
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        if (attempts < maxAttempts)
+                        {
+                            Thread.Sleep(delayMs);
+                            delayMs *= 2;
+                            continue;
+                        }
+                    }
+
+                    throw;
                 }
             }
         }
 
+
         public void Dispose()
         {
-            // ništa za osloboditi (HttpWebRequest je per-call)
+            //ništa za osloboditi 
         }
     }
 }

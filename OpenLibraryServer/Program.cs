@@ -13,7 +13,7 @@ namespace OpenLibraryServer
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Booting server on {prefix}");
 
             _server = new WebServer(prefix);
-            _server.Start(); // ⇐ sinhrono startovanje bez async/await
+            _server.Start(); 
 
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Ready. Open your browser at {prefix}");
             Console.WriteLine("Press Enter to stop...");
