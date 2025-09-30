@@ -79,7 +79,6 @@ namespace OpenLibraryServer
 
                 if (ctx == null) continue;
 
-                // za svaku konekciju koristimo ThreadPool (klasični WaitCallback)
                 ThreadPool.UnsafeQueueUserWorkItem(HandleRequest, ctx);
             }
         }
@@ -242,7 +241,7 @@ namespace OpenLibraryServer
             }
         }
 
-        //Sinhroni helperi 
+        
 
         private SearchProjection FetchProjectionSync(System.Collections.Generic.Dictionary<string, string> forward)
         {
@@ -398,54 +397,32 @@ namespace OpenLibraryServer
         private static string BuildLandingHtml()
         {
             return @"<!doctype html>
-<html lang=""en"">
+<html lang=""sr"">
 <meta charset=""utf-8""/>
 <title>OpenLibrary Server (.NET Framework - Classic Threads)</title>
 <style>
  body { font-family: Segoe UI, Arial, sans-serif; margin: 2rem; line-height:1.5 }
- input,select { padding:.35rem; font-size:1rem; }
- .row { margin:.5rem 0 }
  code { background:#f5f5f5; padding:.15rem .35rem; border-radius:.25rem }
- small { color:#666 }
+ ul { margin-top:.75rem }
+ a { color:#0b5ed7; text-decoration:none } a:hover { text-decoration:underline }
 </style>
 
 <h1>OpenLibrary Multithreaded Server — Classic Threads</h1>
 <p>
-  Endpoints: <code>/search</code>, <code>/health</code> • In-memory cache •
-  HTML view (<code>&format=html</code>).
+  Endpointi: <code>/search</code> i <code>/health</code>. Dodaj <code>&format=html</code> za HTML prikaz rezultata.
 </p>
 
 <h2>Primeri</h2>
 <ul>
   <li><a href=""/search?author=tolkien&sort=new"">/search?author=tolkien&sort=new</a></li>
-  <li><a href=""/search?author=tolkien&sort=new&format=html"">/search?author=tolkien&sort=new&format=html</a></li>
   <li><a href=""/search?q=harry%20potter&limit=5"">/search?q=harry%20potter&limit=5</a></li>
+  <li><a href=""/search?title=the%20lord%20of%20the%20rings&page=2"">/search?title=the%20lord%20of%20the%20rings&page=2</a></li>
+  <li><a href=""/health"">/health</a></li>
 </ul>
 
-<h2>Probaj ovde</h2>
-<form method=""get"" action=""/search"">
-  <div class=""row"">q: <input name=""q"" placeholder=""free text""/></div>
-  <div class=""row"">author: <input name=""author"" placeholder=""npr. tolkien""/></div>
-  <div class=""row"">title: <input name=""title"" placeholder=""npr. dune""/></div>
-  <div class=""row"">subject: <input name=""subject"" placeholder=""optional""/></div>
-  <div class=""row"">
-    sort:
-    <select name=""sort"">
-      <option value="""">(default)</option>
-      <option>new</option><option>old</option><option>random</option><option>key</option>
-    </select>
-    page: <input name=""page"" type=""number"" min=""1"" value=""1"" style=""width:5rem""/>
-    limit: <input name=""limit"" type=""number"" min=""1"" max=""100"" value=""20"" style=""width:5rem""/>
-  </div>
-  <div class=""row"">
-    <label><input type=""checkbox"" name=""format"" value=""html""> HTML view</label>
-  </div>
-  <button type=""submit"">Search</button>
-</form>
-
-<p>Health: <a href=""/health"">/health</a></p>
 </html>";
         }
+
 
         private static string BuildErrorHtml(string message)
         {
